@@ -1,0 +1,5 @@
+{
+  "name": "LinerSync",
+  "description": "Geosynthetic Liner Installation Quality Control (QC) platform for technical projects like WWTP and ponds. Features material logging, destructive test records, welder tracking, and as-built mapping.",
+  "requestFramePermissions": ["camera", "geolocation"]
+}

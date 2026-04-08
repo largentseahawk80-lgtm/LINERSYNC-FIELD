@@ -1,0 +1,149 @@
+export type MaterialType = 'HDPE' | 'LLDPE' | 'PVC' | 'GCL' | 'Geotextile' | 'Geonet' | 'Geocomposite';
+export type SurfaceType = 'Smooth' | 'Textured-1' | 'Textured-2';
+export type Status = 'Pending' | 'Approved' | 'Rejected' | 'Hold';
+
+export interface Project {
+  id: string;
+  name: string;
+  client: string;
+  site: string;
+  materialSpec: {
+    type: MaterialType;
+    thickness: number; // mil
+    surface: SurfaceType;
+    peelThreshold: number; // lbs/in
+    shearThreshold: number; // lbs/in
+  };
+  createdAt: string;
+}
+
+export interface Roll {
+  id: string;
+  projectId: string;
+  rollNumber: string;
+  lotNumber: string;
+  manufacturer: string;
+  width: number; // feet
+  length: number; // feet
+  mfrCert: boolean;
+  conformanceCert: boolean;
+  status: Status;
+  notes?: string;
+  receivedAt: string;
+}
+
+export interface Panel {
+  id: string;
+  projectId: string;
+  panelNumber: string;
+  rollId: string;
+  length: number;
+  width: number;
+  area: number;
+  deployedAt: string;
+  location?: {
+    x: number;
+    y: number;
+    rotation: number;
+  };
+}
+
+export interface Welder {
+  id: string;
+  name: string;
+  idNumber: string;
+  certifications: string[];
+  status: 'Active' | 'Inactive';
+}
+
+export interface Seam {
+  id: string;
+  projectId: string;
+  seamNumber: string;
+  panel1Id: string;
+  panel2Id: string;
+  welderId: string;
+  machineId: string;
+  type: 'Fusion' | 'Extrusion';
+  length: number;
+  trialWeldId?: string;
+  status: Status;
+  weldedAt: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    altitude?: number;
+  };
+  gpsSource?: GPSSource;
+}
+
+export interface DestructiveTest {
+  id: string;
+  seamId: string;
+  sampleNumber: string;
+  location: string; // stationing or description
+  date: string;
+  results: {
+    peel: { value: number; pass: boolean }[];
+    shear: { value: number; pass: boolean }[];
+  };
+  overallPass: boolean;
+  labReportId?: string;
+  locationGPS?: {
+    latitude: number;
+    longitude: number;
+    altitude?: number;
+  };
+  gpsSource?: GPSSource;
+}
+
+export interface Repair {
+  id: string;
+  projectId: string;
+  repairNumber: string;
+  panelId: string;
+  seamId?: string; // Link to seam if repair is on a seam (e.g. DT sample)
+  location: string;
+  type: 'Patch' | 'Bead' | 'Cap' | 'Grind';
+  reason: string;
+  welderId: string;
+  machineId: string;
+  size?: string; // e.g. 12"x12"
+  status: Status;
+  repairedAt: string;
+  locationGPS?: {
+    latitude: number;
+    longitude: number;
+    altitude?: number;
+  };
+  gpsSource?: GPSSource;
+}
+
+export type ParentType = 'Panel' | 'Seam' | 'Repair' | 'DT' | 'Project';
+
+export interface MediaRecord {
+  id: string;
+  timestamp: string;
+  data: Blob;
+  parentType: ParentType;
+  parentId: string;
+  description: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+    altitude?: number;
+  };
+  gpsSource?: GPSSource;
+  welderId?: string;
+  droneId?: string;
+}
+
+export type GPSSource = 'Internal' | 'External (BN-880)';
+
+export interface Drone {
+  id: string;
+  model: 'Mini 5 Pro' | 'Air 2S' | 'Neo 1';
+  serialNumber: string;
+  status: 'Active' | 'Maintenance' | 'Retired';
+  lastFlight?: string;
+}
