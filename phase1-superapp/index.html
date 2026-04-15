@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>LinerSync Super App - Phase 1</title>
+  <link rel="manifest" href="./manifest.json" />
+  <style>
+    :root {
+      --bg: #060b12;
+      --panel: #0f1724;
+      --panel-2: #131f31;
+      --line: #26364f;
+      --text: #e7edf8;
+      --muted: #97a7bf;
+      --accent: #ff7a00;
+      --accent-2: #ffc247;
+      --good: #22c55e;
+      --bad: #ef4444;
+      --blue: #38bdf8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: linear-gradient(180deg, #08101b, #05080d 38%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .topbar {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .card {
+      background: rgba(15, 23, 36, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.25);
+    }
+    .hero {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: linear-gradient(135deg, rgba(255,122,0,.12), rgba(56,189,248,.06));
+    }
+    .title {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+    h1 { margin: 0; font-size: 28px; letter-spacing: -.02em; }
+    .sub { color: var(--muted); font-size: 13px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid rgba(255,255,255,.1); border-radius: 999px;
+      padding: 8px 12px; font-size: 12px; color: var(--muted);
+      background: rgba(255,255,255,.04);
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 10px;
+    }
+    .stat {
+      padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.03);
+    }
+    .stat .n { font-size: 24px; font-weight: 800; }
+    .stat .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+    .project {
+      padding: 18px; display: grid; gap: 12px;
+    }
+    .project-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+    input, select, textarea, button {
+      font: inherit;
+    }
+    input, select, textarea {
+      width: 100%; padding: 12px 12px; border-radius: 12px;
+      border: 1px solid var(--line); background: #0b1320; color: var(--text);
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    .btn-row, .nav, .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    button {
+      border: 0; border-radius: 12px; padding: 12px 14px; cursor: pointer;
+      background: #172334; color: var(--text); font-weight: 700;
+    }
+    .primary { background: var(--accent); color: #181208; }
+    .ghost { border: 1px solid var(--line); background: transparent; }
+    .good { background: var(--good); color: #08110b; }
+    .bad { background: var(--bad); color: white; }
+    .nav {
+      position: sticky; top: 0; z-index: 5; padding: 10px 0 14px;
+      background: linear-gradient(180deg, rgba(6,11,18,.98), rgba(6,11,18,.75), rgba(6,11,18,0));
+      backdrop-filter: blur(6px);
+    }
+    .nav button.active { background: var(--accent); color: #181208; }
+    .layout {
+      display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px;
+    }
+    .panel { padding: 16px; }
+    .section-title {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px;
+    }
+    .section-title h2 { margin: 0; font-size: 18px; }
+    .hidden { display: none !important; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .records {
+      display: grid; gap: 10px;
+    }
+    .record {
+      border: 1px solid var(--line); background: rgba(255,255,255,.025); border-radius: 14px; padding: 12px;
+    }
+    .record-top { display: flex; justify-content: space-between; gap: 12px; }
+    .record-id { color: var(--accent); font-weight: 800; }
+    .mini { color: var(--muted); font-size: 12px; }
+    .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+    .kv div { background: rgba(255,255,255,.03); border-radius: 10px; padding: 8px; }
+    .capture-box {
+      border: 1px dashed rgba(255,255,255,.18);
+      border-radius: 16px; padding: 14px; background: rgba(255,255,255,.02);
+    }
+    .capture-preview {
+      width: 100%; max-height: 240px; object-fit: cover; border-radius: 12px; margin-top: 10px; border: 1px solid var(--line);
+      display: none;
+    }
+    .stack { display: grid; gap: 10px; }
+    .mythos {
+      background: linear-gradient(135deg, rgba(56,189,248,.08), rgba(255,122,0,.08));
+      border: 1px solid rgba(56,189,248,.2);
+    }
+    .status-row { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+    .pill { padding: 7px 10px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+    .footer-note { color: var(--muted); font-size: 12px; padding-top: 12px; }
+    @media (max-width: 1100px) {
+      .topbar, .layout { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (max-width: 720px) {
+      .project-grid, .grid-2, .grid-3, .grid-4, .kv { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      h1 { font-size: 24px; }
+      .wrap { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <section class="card hero">
+        <div class="title">
+          <div>
+            <h1>LinerSync Super App</h1>
+            <div class="sub">Phase 1 shell built inside the real repo. Focus: installable field PWA, automation-first QC modules, Tap-to-Capture, and Mythos staging.</div>
+          </div>
+          <div class="badge"><span class="dot"></span><span id="installState">PWA shell ready</span></div>
+        </div>
+        <div class="status-row">
+          <div class="pill">Project: <strong id="projectNameChip">South Yuma Landfill</strong></div>
+          <div class="pill">GPS: <strong id="gpsStatus">waiting</strong></div>
+          <div class="pill">Records: <strong id="recordCount">0</strong></div>
+          <div class="pill">Mythos: <strong>staged</strong></div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="n" id="countPanels">0</div><div class="l">Panels</div></div>
+          <div class="stat"><div class="n" id="countSeams">0</div><div class="l">Seams</div></div>
+          <div class="stat"><div class="n" id="countAir">0</div><div class="l">Air</div></div>
+          <div class="stat"><div class="n" id="countWedge">0</div><div class="l">Wedge</div></div>
+          <div class="stat"><div class="n" id="countExtrusion">0</div><div class="l">Extrusion</div></div>
+          <div class="stat"><div class="n" id="countDT">0</div><div class="l">DT</div></div>
+          <div class="stat"><div class="n" id="countRepairs">0</div><div class="l">Repairs</div></div>
+          <div class="stat"><div class="n" id="countCaptures">0</div><div class="l">Captures</div></div>
+        </div>
+      </section>
+
+      <section class="card project">
+        <div class="section-title"><h2>Project setup</h2><button id="installBtn" class="primary hidden">Install app</button></div>
+        <div class="project-grid">
+          <div><label>Project name</label><input id="projectName" placeholder="South Yuma Landfill" /></div>
+          <div><label>Site</label><input id="projectSite" placeholder="Yuma, AZ" /></div>
+          <div><label>Client</label><input id="projectClient" placeholder="Owner / GC" /></div>
+        </div>
+        <div class="btn-row">
+          <button class="primary" id="saveProjectBtn">Save project</button>
+          <button class="ghost" id="exportBtn">Export JSON backup</button>
+          <button class="ghost" id="importBtn">Import JSON</button>
+          <input id="importFile" type="file" accept="application/json" class="hidden" />
+          <button class="bad" id="resetBtn">Reset local data</button>
+        </div>
+        <div class="footer-note">This shell saves offline to localStorage right now so there is visible progress tonight. Next phase is wiring these modules into the main React app and moving records/media into IndexedDB + backend sync.</div>
+      </section>
+    </div>
+
+    <div class="nav" id="nav"></div>
+
+    <div class="layout">
+      <section class="card panel">
+        <div id="views"></div>
+      </section>
+
+      <aside class="stack">
+        <section class="card panel">
+          <div class="section-title"><h2>Tap-to-Capture</h2></div>
+          <div class="capture-box stack">
+            <div class="grid-2">
+              <div>
+                <label>Capture type</label>
+                <select id="captureType">
+                  <option>Panel</option>
+                  <option>Seam</option>
+                  <option>Air Test</option>
+                  <option>Wedge Weld</option>
+                  <option>Extrusion Weld</option>
+                  <option>DT</option>
+                  <option>Repair</option>
+                </select>
+              </div>
+              <div>
+                <label>Linked ID</label>
+                <input id="captureLinkedId" placeholder="Seam number / Panel number / Repair ID" />
+              </div>
+            </div>
+            <div>
+              <label>Quick note</label>
+              <textarea id="captureNote" placeholder="Voice note summary or field note"></textarea>
+            </div>
+            <div>
+              <label>Photo / live camera</label>
+              <input id="capturePhoto" type="file" accept="image/*" capture="environment" />
+              <img id="capturePreview" class="capture-preview" alt="capture preview" />
+            </div>
+            <div class="btn-row">
+              <button class="primary" id="saveCaptureBtn">Save capture</button>
+              <button class="ghost" id="gpsBtn">Grab GPS now</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card panel mythos">
+          <div class="section-title"><h2>Mythos agent staging</h2></div>
+          <div class="stack">
+            <div class="mini">Tonight's stage goal: put the assistant inside the app with access to project summary, QC counts, last capture, and next required action.</div>
+            <textarea id="mythosPrompt" placeholder="Mythos notes, next automations, field rules..."></textarea>
+            <button class="primary" id="saveMythosBtn">Save Mythos notes</button>
+            <div class="record"><div class="mini">Suggested automations:</div><ul id="mythosList"></ul></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'linersync-superapp-phase1';
+    const tabs = ['Dashboard','Panels','Seams','Air','Wedge','Extrusion','DT','Repairs','Captures'];
+    const state = loadState();
+    let activeTab = 'Dashboard';
+    let deferredPrompt = null;
+    let latestGPS = null;
+
+    function freshState() {
+      return {
+        project: { name: 'South Yuma Landfill', site: '', client: '' },
+        panels: [],
+        seams: [],
+        air: [],
+        wedge: [],
+        extrusion: [],
+        dt: [],
+        repairs: [],
+        captures: [],
+        mythosPrompt: '',
+      };
+    }
+
+    function loadState() {
+      try {
+        return Object.assign(freshState(), JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'));
+      } catch (e) {
+        return freshState();
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      render();
+    }
+
+    function uid(prefix) {
+      return prefix + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
+    function ts() {
+      return new Date().toISOString();
+    }
+
+    function setupNav() {
+      const nav = document.getElementById('nav');
+      nav.innerHTML = tabs.map(tab => `<button data-tab="${tab}" class="${tab === activeTab ? 'active' : ''}">${tab}</button>`).join('');
+      [...nav.querySelectorAll('button')].forEach(btn => btn.addEventListener('click', () => {
+        activeTab = btn.dataset.tab;
+        renderView();
+        setupNav();
+      }));
+    }
+
+    function render() {
+      document.getElementById('projectName').value = state.project.name || '';
+      document.getElementById('projectSite').value = state.project.site || '';
+      document.getElementById('projectClient').value = state.project.client || '';
+      document.getElementById('projectNameChip').textContent = state.project.name || 'Unnamed Project';
+      document.getElementById('mythosPrompt').value = state.mythosPrompt || '';
+      document.getElementById('recordCount').textContent = totalRecords();
+      document.getElementById('countPanels').textContent = state.panels.length;
+      document.getElementById('countSeams').textContent = state.seams.length;
+      document.getElementById('countAir').textContent = state.air.length;
+      document.getElementById('countWedge').textContent = state.wedge.length;
+      document.getElementById('countExtrusion').textContent = state.extrusion.length;
+      document.getElementById('countDT').textContent = state.dt.length;
+      document.getElementById('countRepairs').textContent = state.repairs.length;
+      document.getElementById('countCaptures').textContent = state.captures.length;
+      renderMythos();
+      renderView();
+      setupNav();
+    }
+
+    function totalRecords() {
+      return state.panels.length + state.seams.length + state.air.length + state.wedge.length + state.extrusion.length + state.dt.length + state.repairs.length + state.captures.length;
+    }
+
+    function recordCard(item, fields) {
+      return `<div class="record">
+        <div class="record-top">
+          <div>
+            <div class="record-id">${item.id || item.number || item.seamNumber || item.panelNumber || item.repairNumber}</div>
+            <div class="mini">${new Date(item.createdAt || item.timestamp || Date.now()).toLocaleString()}</div>
+          </div>
+          <div class="mini">${item.status || item.pass === true ? 'PASS' : item.pass === false ? 'CHECK' : ''}</div>
+        </div>
+        <div class="kv">${fields.map(([k, v]) => `<div><div class="mini">${k}</div><div>${v ?? ''}</div></div>`).join('')}</div>
+      </div>`;
+    }
+
+    function renderList(items, mapper, emptyText) {
+      if (!items.length) return `<div class="record"><div class="mini">${emptyText}</div></div>`;
+      return `<div class="records">${items.slice().reverse().map(mapper).join('')}</div>`;
+    }
+
+    function renderView() {
+      const root = document.getElementById('views');
+      if (activeTab === 'Dashboard') {
+        root.innerHTML = `
+          <div class="section-title"><h2>Dashboard</h2></div>
+          <div class="grid-2">
+            <div class="record">
+              <div class="mini">Current focus</div>
+              <h3 style="margin:8px 0 10px;">Make the real app installable, automation-first, and QC-complete</h3>
+              <div class="mini">Priority modules that were missing must stay front and center: air testing, wedge weld, extrusion weld, DT, and repairs.</div>
+            </div>
+            <div class="record">
+              <div class="mini">Latest capture</div>
+              <div>${state.captures.length ? (state.captures[state.captures.length - 1].type + ' • ' + (state.captures[state.captures.length - 1].linkedId || 'unlinked')) : 'No captures yet'}</div>
+              <div class="mini" style="margin-top:8px;">GPS ${latestGPS ? (latestGPS.lat.toFixed(6)+', '+latestGPS.lng.toFixed(6)) : 'not locked'}</div>
+            </div>
+          </div>
+          <div class="section-title" style="margin-top:14px;"><h2>Recent records</h2></div>
+          ${renderList(state.captures.slice(-5), c => recordCard(c, [['Type', c.type],['Linked', c.linkedId || '-'],['GPS', c.lat ? c.lat.toFixed(5)+', '+c.lng.toFixed(5) : 'none']]), 'No records yet.')}
+        `;
+        return;
+      }
+
+      const templates = {
+        Panels: {
+          form: `
+            <div class="grid-4">
+              <div><label>Panel number</label><input id="panelNumber" placeholder="P-001" /></div>
+              <div><label>Roll number</label><input id="panelRoll" placeholder="R-001" /></div>
+              <div><label>Area (SF)</label><input id="panelArea" type="number" placeholder="11500" /></div>
+              <div><label>Status</label><select id="panelStatus"><option>Deployed</option><option>Pending</option><option>Hold</option></select></div>
+            </div>`,
+          save: () => state.panels.push({ id: uid('PANEL'), panelNumber: val('panelNumber'), rollNumber: val('panelRoll'), area: num('panelArea'), status: val('panelStatus'), createdAt: ts() }),
+          list: () => renderList(state.panels, p => recordCard(p, [['Panel', p.panelNumber],['Roll', p.rollNumber],['Area', p.area],['Status', p.status]]), 'No panels logged yet.')
+        },
+        Seams: {
+          form: `
+            <div class="grid-4">
+              <div><label>Seam number</label><input id="seamNumber" placeholder="S-001" /></div>
+              <div><label>Type</label><select id="seamType"><option>Fusion</option><option>Extrusion</option><option>T-Cap</option></select></div>
+              <div><label>Welder</label><input id="seamWelder" placeholder="Welder initials / ID" /></div>
+              <div><label>Length (LF)</label><input id="seamLength" type="number" placeholder="420" /></div>
+            </div>`,
+          save: () => state.seams.push({ id: uid('SEAM'), seamNumber: val('seamNumber'), type: val('seamType'), welder: val('seamWelder'), length: num('seamLength'), createdAt: ts() }),
+          list: () => renderList(state.seams, s => recordCard(s, [['Seam', s.seamNumber],['Type', s.type],['Welder', s.welder],['Length', s.length]]), 'No seams logged yet.')
+        },
+        Air: {
+          form: `
+            <div class="grid-4">
+              <div><label>Air test ID</label><input id="airId" placeholder="AT-001" /></div>
+              <div><label>Seam number</label><input id="airSeam" placeholder="S-001" /></div>
+              <div><label>Start PSI</label><input id="airStart" type="number" step="0.1" placeholder="30" /></div>
+              <div><label>End PSI</label><input id="airEnd" type="number" step="0.1" placeholder="29.5" /></div>
+            </div>
+            <div class="grid-3" style="margin-top:10px;">
+              <div><label>Duration (min)</label><input id="airDuration" type="number" placeholder="5" /></div>
+              <div><label>Status</label><select id="airPass"><option value="pass">Pass</option><option value="fail">Fail</option></select></div>
+              <div><label>Notes</label><input id="airNotes" placeholder="Pressure hold / leak note" /></div>
+            </div>`,
+          save: () => state.air.push({ id: val('airId') || uid('AIR'), seamNumber: val('airSeam'), startPsi: num('airStart'), endPsi: num('airEnd'), durationMin: num('airDuration'), pass: val('airPass') === 'pass', notes: val('airNotes'), createdAt: ts() }),
+          list: () => renderList(state.air, a => recordCard(a, [['Seam', a.seamNumber],['Start', a.startPsi],['End', a.endPsi],['Result', a.pass ? 'PASS' : 'FAIL']]), 'No air tests logged yet.')
+        },
+        Wedge: {
+          form: `
+            <div class="grid-4">
+              <div><label>Wedge weld ID</label><input id="wedgeId" placeholder="WW-001" /></div>
+              <div><label>Seam number</label><input id="wedgeSeam" placeholder="S-001" /></div>
+              <div><label>Temperature</label><input id="wedgeTemp" type="number" placeholder="425" /></div>
+              <div><label>Speed</label><input id="wedgeSpeed" type="number" step="0.1" placeholder="8.5" /></div>
+            </div>
+            <div class="grid-3" style="margin-top:10px;">
+              <div><label>Pressure</label><input id="wedgePressure" type="number" placeholder="45" /></div>
+              <div><label>Operator</label><input id="wedgeOperator" placeholder="Welder ID" /></div>
+              <div><label>Status</label><select id="wedgePass"><option value="pass">Pass</option><option value="fail">Fail</option></select></div>
+            </div>`,
+          save: () => state.wedge.push({ id: val('wedgeId') || uid('WEDGE'), seamNumber: val('wedgeSeam'), temperature: num('wedgeTemp'), speed: num('wedgeSpeed'), pressure: num('wedgePressure'), operator: val('wedgeOperator'), pass: val('wedgePass') === 'pass', createdAt: ts() }),
+          list: () => renderList(state.wedge, w => recordCard(w, [['Seam', w.seamNumber],['Temp', w.temperature],['Speed', w.speed],['Result', w.pass ? 'PASS' : 'FAIL']]), 'No wedge weld records yet.')
+        },
+        Extrusion: {
+          form: `
+            <div class="grid-4">
+              <div><label>Extrusion weld ID</label><input id="extId" placeholder="EW-001" /></div>
+              <div><label>Repair / patch ID</label><input id="extRepair" placeholder="RPR-001" /></div>
+              <div><label>Extruder temp</label><input id="extTemp" type="number" placeholder="550" /></div>
+              <div><label>Rod lot</label><input id="extRod" placeholder="Rod lot" /></div>
+            </div>
+            <div class="grid-3" style="margin-top:10px;">
+              <div><label>Technician</label><input id="extTech" placeholder="Tech ID" /></div>
+              <div><label>Vacuum required</label><select id="extVac"><option>Yes</option><option>No</option></select></div>
+              <div><label>Status</label><select id="extPass"><option value="pass">Pass</option><option value="fail">Fail</option></select></div>
+            </div>`,
+          save: () => state.extrusion.push({ id: val('extId') || uid('EXT'), repairId: val('extRepair'), temperature: num('extTemp'), rodLot: val('extRod'), technician: val('extTech'), vacuumRequired: val('extVac') === 'Yes', pass: val('extPass') === 'pass', createdAt: ts() }),
+          list: () => renderList(state.extrusion, e => recordCard(e, [['Repair', e.repairId],['Temp', e.temperature],['Rod', e.rodLot],['Result', e.pass ? 'PASS' : 'FAIL']]), 'No extrusion weld records yet.')
+        },
+        DT: {
+          form: `
+            <div class="grid-4">
+              <div><label>DT ID</label><input id="dtId" placeholder="DT-001" /></div>
+              <div><label>Seam number</label><input id="dtSeam" placeholder="S-001" /></div>
+              <div><label>Peel average</label><input id="dtPeel" type="number" step="0.1" placeholder="85" /></div>
+              <div><label>Shear average</label><input id="dtShear" type="number" step="0.1" placeholder="121" /></div>
+            </div>
+            <div class="grid-2" style="margin-top:10px;">
+              <div><label>Status</label><select id="dtPass"><option value="pass">Pass</option><option value="fail">Fail</option></select></div>
+              <div><label>Notes</label><input id="dtNotes" placeholder="Film tear / bond note" /></div>
+            </div>`,
+          save: () => state.dt.push({ id: val('dtId') || uid('DT'), seamNumber: val('dtSeam'), peelAvg: num('dtPeel'), shearAvg: num('dtShear'), pass: val('dtPass') === 'pass', notes: val('dtNotes'), createdAt: ts() }),
+          list: () => renderList(state.dt, d => recordCard(d, [['Seam', d.seamNumber],['Peel', d.peelAvg],['Shear', d.shearAvg],['Result', d.pass ? 'PASS' : 'FAIL']]), 'No destructive tests logged yet.')
+        },
+        Repairs: {
+          form: `
+            <div class="grid-4">
+              <div><label>Repair ID</label><input id="repairId" placeholder="RPR-001" /></div>
+              <div><label>Panel number</label><input id="repairPanel" placeholder="P-001" /></div>
+              <div><label>Type</label><select id="repairType"><option>Patch</option><option>Cap Strip</option><option>Burn Repair</option><option>Hole Repair</option></select></div>
+              <div><label>Status</label><select id="repairStatus"><option>Pending</option><option>Completed</option><option>Retest Required</option></select></div>
+            </div>`,
+          save: () => state.repairs.push({ id: val('repairId') || uid('RPR'), panelNumber: val('repairPanel'), type: val('repairType'), status: val('repairStatus'), createdAt: ts() }),
+          list: () => renderList(state.repairs, r => recordCard(r, [['Panel', r.panelNumber],['Type', r.type],['Status', r.status],['ID', r.id]]), 'No repairs logged yet.')
+        },
+        Captures: {
+          form: `<div class="record"><div class="mini">Use the Tap-to-Capture box on the right. It saves a timestamped capture with optional photo, GPS, note, and linked QC ID.</div></div>`,
+          save: () => {},
+          list: () => renderList(state.captures, c => recordCard(c, [['Type', c.type],['Linked', c.linkedId || '-'],['GPS', c.lat ? c.lat.toFixed(5)+', '+c.lng.toFixed(5) : 'none'],['Photo', c.photo ? 'yes' : 'no']]), 'No captures logged yet.')
+        }
+      };
+
+      const cfg = templates[activeTab];
+      root.innerHTML = `
+        <div class="section-title"><h2>${activeTab}</h2><button class="primary" id="saveSectionBtn">Save ${activeTab === 'DT' ? 'DT' : activeTab.slice(0, -1) || activeTab}</button></div>
+        <div class="stack">
+          <div class="record">${cfg.form}</div>
+          ${cfg.list()}
+        </div>`;
+      const btn = document.getElementById('saveSectionBtn');
+      if (btn) btn.addEventListener('click', () => {
+        cfg.save();
+        saveState();
+        clearSectionInputs(root);
+      });
+    }
+
+    function clearSectionInputs(root) {
+      [...root.querySelectorAll('input, textarea')].forEach(el => el.value = '');
+      [...root.querySelectorAll('select')].forEach(el => el.selectedIndex = 0);
+    }
+
+    function val(id) { return document.getElementById(id)?.value?.trim() || ''; }
+    function num(id) { const n = parseFloat(val(id)); return Number.isFinite(n) ? n : 0; }
+
+    function grabGPS() {
+      if (!navigator.geolocation) {
+        document.getElementById('gpsStatus').textContent = 'unsupported';
+        return;
+      }
+      document.getElementById('gpsStatus').textContent = 'locking';
+      navigator.geolocation.getCurrentPosition(pos => {
+        latestGPS = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
+        document.getElementById('gpsStatus').textContent = `${latestGPS.lat.toFixed(5)}, ${latestGPS.lng.toFixed(5)} ±${Math.round(latestGPS.acc)}m`;
+      }, () => {
+        document.getElementById('gpsStatus').textContent = 'denied';
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    }
+
+    function setupProjectActions() {
+      document.getElementById('saveProjectBtn').addEventListener('click', () => {
+        state.project.name = val('projectName');
+        state.project.site = val('projectSite');
+        state.project.client = val('projectClient');
+        saveState();
+      });
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `linersync-superapp-backup-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+      document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+      document.getElementById('importFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const text = await file.text();
+        const incoming = JSON.parse(text);
+        Object.assign(state, freshState(), incoming);
+        saveState();
+      });
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        if (!confirm('Reset all local Phase 1 data?')) return;
+        Object.assign(state, freshState());
+        saveState();
+      });
+    }
+
+    function setupCapture() {
+      const photoInput = document.getElementById('capturePhoto');
+      const preview = document.getElementById('capturePreview');
+      let photoData = '';
+      photoInput.addEventListener('change', async () => {
+        const file = photoInput.files[0];
+        if (!file) { photoData = ''; preview.style.display = 'none'; return; }
+        const reader = new FileReader();
+        reader.onload = () => {
+          photoData = reader.result;
+          preview.src = photoData;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      });
+      document.getElementById('gpsBtn').addEventListener('click', grabGPS);
+      document.getElementById('saveCaptureBtn').addEventListener('click', () => {
+        const item = {
+          id: uid('CAP'),
+          type: val('captureType'),
+          linkedId: val('captureLinkedId'),
+          note: val('captureNote'),
+          photo: photoData || '',
+          lat: latestGPS?.lat || null,
+          lng: latestGPS?.lng || null,
+          gpsAccuracy: latestGPS?.acc || null,
+          timestamp: ts()
+        };
+        state.captures.push(item);
+        saveState();
+        document.getElementById('captureLinkedId').value = '';
+        document.getElementById('captureNote').value = '';
+        document.getElementById('capturePhoto').value = '';
+        preview.src = '';
+        preview.style.display = 'none';
+        photoData = '';
+      });
+    }
+
+    function renderMythos() {
+      const root = document.getElementById('mythosList');
+      const suggestions = [
+        `Project summary: ${state.project.name || 'Unnamed project'} • ${totalRecords()} total records`,
+        `${state.air.length === 0 ? 'Add air test workflow enforcement' : 'Air test workflow has visible records'}`,
+        `${state.wedge.length === 0 ? 'Add wedge weld machine telemetry hooks' : 'Wedge weld log active'}`,
+        `${state.extrusion.length === 0 ? 'Add extrusion repair checklist automation' : 'Extrusion weld log active'}`,
+        `${state.captures.length === 0 ? 'Use Tap-to-Capture to seed field data' : 'Tap-to-Capture seeded and saving offline'}`
+      ];
+      root.innerHTML = suggestions.map(s => `<li class="mini" style="margin:0 0 6px 18px;">${s}</li>`).join('');
+    }
+
+    function setupMythos() {
+      document.getElementById('saveMythosBtn').addEventListener('click', () => {
+        state.mythosPrompt = document.getElementById('mythosPrompt').value.trim();
+        saveState();
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('installBtn').classList.remove('hidden');
+      document.getElementById('installState').textContent = 'Install available';
+    });
+
+    document.getElementById('installBtn').addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      document.getElementById('installBtn').classList.add('hidden');
+      document.getElementById('installState').textContent = 'Installed / install attempted';
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    }
+
+    setupProjectActions();
+    setupCapture();
+    setupMythos();
+    grabGPS();
+    render();
+  </script>
+</body>
+</html>
