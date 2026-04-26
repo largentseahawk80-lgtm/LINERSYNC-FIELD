@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  Activity, Archive, Camera, CheckCircle2, Crosshair, Download, Eye, FileText,
+  Activity, Archive, Brain, Camera, CheckCircle2, Crosshair, Download, Eye, FileText,
   Grid3X3, Map, Package, Plus, Radio, Save, Search, ShieldCheck, Wrench, Zap
 } from 'lucide-react';
 import './style.css';
 import type { AsBuiltPoint, ConstantData, ModuleType, QCRecord, GPSPoint } from './types';
 import {
-  DEFAULT_CONSTANTS, downloadText, loadAsBuilt, loadConstants, loadRecords,
+  downloadText, loadAsBuilt, loadConstants, loadRecords,
   makeCsv, now12, saveAsBuilt, saveConstants, saveRecords
 } from './storage';
 
@@ -35,6 +35,9 @@ const FIELD_MAP: Record<ModuleType, [string, string][]> = {
   daily: [['Crew','crew'], ['Weather','weather'], ['Production','production'], ['Delays / Issues','issues']]
 };
 
+type AppTab = 'dashboard'|'capture'|'logs'|'asbuilt'|'vision'|'mythos'|'exports';
+type MythosIssue = { level: 'danger'|'warning'|'ok'; title: string; detail: string; action: string };
+
 function getGps(): Promise<GPSPoint | undefined> {
   return new Promise(resolve => {
     if (!navigator.geolocation) return resolve(undefined);
@@ -51,8 +54,80 @@ function constantTitle(c: ConstantData) {
     .filter(Boolean).join(' • ') || 'No constants saved';
 }
 
+function analyzeMythos(constants: ConstantData, records: QCRecord[]): MythosIssue[] {
+  const issues: MythosIssue[] = [];
+  const requiredConstants: [keyof ConstantData, string][] = [
+    ['projectName','Project name'], ['qcTech','QC tech'], ['activeRollNumber','Active roll number'], ['activePanel','Active panel/area'],
+    ['linerType','Liner type'], ['linerThickness','Liner thickness'], ['linerWidth','Liner width'], ['installer','Installer'], ['weather','Weather']
+  ];
+
+  for (const [key, label] of requiredConstants) {
+    if (!String(constants[key] || '').trim()) {
+      issues.push({
+        level: 'warning',
+        title: `${label} is missing`,
+        detail: `Mythos cannot auto-fill clean logs without ${label.toLowerCase()}.`,
+        action: `Open Tap Capture and fill ${label}.`
+      });
+    }
+  }
+
+  const todays = records.filter(r => new Date(r.createdAt).toDateString() === new Date().toDateString());
+  const seamLogs = records.filter(r => r.type === 'seam');
+  const airLogs = records.filter(r => r.type === 'air');
+  const dtLogs = records.filter(r => r.type === 'dt');
+  const repairLogs = records.filter(r => r.type === 'repair');
+  const missingGps = records.filter(r => !r.gps);
+  const drafts = records.filter(r => r.status !== 'locked');
+
+  if (records.length === 0) {
+    issues.push({ level: 'danger', title: 'No field logs saved yet', detail: 'The app has no real job data for Mythos to learn from.', action: 'Start with a Seam Log or Panel Placement and lock the first record.' });
+  }
+
+  if (seamLogs.length > 0 && dtLogs.length === 0) {
+    issues.push({ level: 'warning', title: 'Seams exist but no DT logged', detail: `${seamLogs.length} seam log(s) are saved with zero destructive tests.`, action: 'Add a Destructive Test or mark why DT is not required yet.' });
+  }
+
+  const shortAir = airLogs.filter(r => Number(r.fields.holdMinutes || 0) > 0 && Number(r.fields.holdMinutes || 0) < 5);
+  if (shortAir.length) {
+    issues.push({ level: 'danger', title: 'Air test hold time problem', detail: `${shortAir.length} air test(s) show hold time under 5 minutes.`, action: 'Open Last Logs, find the air test, and correct or re-test before approval.' });
+  }
+
+  if (missingGps.length) {
+    issues.push({ level: 'warning', title: 'Some logs are missing GPS', detail: `${missingGps.length} record(s) saved without GPS coordinates.`, action: 'Use Capture GPS/Time before locking important QC records.' });
+  }
+
+  if (drafts.length) {
+    issues.push({ level: 'warning', title: 'Draft records not locked', detail: `${drafts.length} record(s) are still drafts.`, action: 'Review them in Last Logs and approve/lock the ones that are correct.' });
+  }
+
+  if (repairLogs.length && !records.some(r => r.type === 'air' || r.type === 'extrusion')) {
+    issues.push({ level: 'warning', title: 'Repairs logged without test support', detail: 'Repairs exist, but no air/extrusion support logs are saved.', action: 'Add extrusion/vacuum/air verification depending on the repair type.' });
+  }
+
+  if (todays.length === 0 && records.length > 0) {
+    issues.push({ level: 'warning', title: 'No logs for today', detail: 'The app has old logs but nothing saved today.', action: 'Start today with a Daily Log or first Seam Log.' });
+  }
+
+  if (!issues.length) {
+    issues.push({ level: 'ok', title: 'QC data looks clean', detail: 'Mythos does not see missing constants, failed air holds, missing GPS, or unlocked drafts right now.', action: 'Keep logging seams, tests, repairs, and daily notes.' });
+  }
+
+  return issues;
+}
+
+function nextMythosAction(constants: ConstantData, records: QCRecord[]) {
+  if (!constants.projectName) return 'Fill Project Name in Constant Job Data.';
+  if (!constants.activeRollNumber) return 'Set the active roll number before logging more panels or seams.';
+  if (!constants.activeSeam) return 'Set the active seam, then capture a Seam Log.';
+  if (!records.some(r => r.type === 'seam')) return 'Capture your first Seam Log.';
+  if (records.some(r => r.type === 'seam') && !records.some(r => r.type === 'dt')) return 'Add the next Destructive Test for the active seam.';
+  if (records.some(r => r.status === 'draft')) return 'Review and lock draft records in Last Logs.';
+  return 'Capture the next field item: seam, test, repair, or daily note.';
+}
+
 function App() {
-  const [tab, setTab] = useState<'dashboard'|'capture'|'logs'|'asbuilt'|'vision'|'exports'>('dashboard');
+  const [tab, setTab] = useState<AppTab>('dashboard');
   const [constants, setConstants] = useState<ConstantData>(() => loadConstants());
   const [records, setRecords] = useState<QCRecord[]>(() => loadRecords());
   const [points, setPoints] = useState<AsBuiltPoint[]>(() => loadAsBuilt());
@@ -115,7 +190,7 @@ function App() {
     setPoints([{ id: `P-${Date.now()}`, kind, label: rec.title, x: 12 + Math.random()*76, y: 12 + Math.random()*70, recordId: rec.id, color: kind === 'seam' ? '#38bdf8' : kind === 'repair' ? '#f59e0b' : kind === 'dt' ? '#ef4444' : '#22c55e' }, ...points]);
     setNotes('');
     setGps(undefined);
-    setTab('logs');
+    setTab('mythos');
   }
 
   function updateConst<K extends keyof ConstantData>(key: K, value: ConstantData[K]) {
@@ -130,6 +205,7 @@ function App() {
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">LS</div><div><h1>LINERSYNC</h1><p>FIELD BUILD • REACT</p></div></div>
       <Nav tab={tab} setTab={setTab} />
+      <div className="side-card"><div className="tiny">MYTHOS NEXT</div><strong>{nextMythosAction(constants, records)}</strong></div>
       <div className="side-card"><div className="tiny">ACTIVE CONSTANTS</div><strong>{constantTitle(constants)}</strong></div>
     </aside>
     <main className="main">
@@ -142,6 +218,7 @@ function App() {
       {tab === 'logs' && <Logs records={filtered} query={query} setQuery={setQuery} />}
       {tab === 'asbuilt' && <AsBuilt points={points} />}
       {tab === 'vision' && <Vision constants={constants} gps={gps} captureGps={captureGps} points={points} />}
+      {tab === 'mythos' && <Mythos constants={constants} records={records} setTab={setTab} />}
       {tab === 'exports' && <Exports records={records} exportBackup={exportBackup} exportCsv={() => downloadText('LinerSync_FIELD_export.csv', makeCsv(records), 'text/csv')} />}
     </main>
   </div>;
@@ -150,7 +227,7 @@ function App() {
 function Nav({ tab, setTab }: { tab: string; setTab: (t: any)=>void }) {
   const items = [
     ['dashboard', <Activity size={18}/>, 'Dashboard'], ['capture', <Plus size={18}/>, 'Tap Capture'], ['logs', <Archive size={18}/>, 'Last Logs'],
-    ['asbuilt', <Map size={18}/>, 'As-Built'], ['vision', <Eye size={18}/>, 'AR Vision'], ['exports', <Download size={18}/>, 'Export']
+    ['asbuilt', <Map size={18}/>, 'As-Built'], ['vision', <Eye size={18}/>, 'AR Vision'], ['mythos', <Brain size={18}/>, 'Mythos'], ['exports', <Download size={18}/>, 'Export']
   ] as const;
   return <nav>{items.map(([id, icon, label]) => <button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{icon}<span>{label}</span></button>)}</nav>;
 }
@@ -158,9 +235,10 @@ function Nav({ tab, setTab }: { tab: string; setTab: (t: any)=>void }) {
 function Dashboard({ constants, records, setTab }: { constants: ConstantData; records: QCRecord[]; setTab:(t:any)=>void }) {
   const locked = records.filter(r => r.status === 'locked').length;
   const seams = records.filter(r => r.type === 'seam').length;
-  return <section className="page"><h2>Field Dashboard</h2><p className="muted">This is the real repo build. Seam Log, As-Built, AR Vision, AutoFill Constants, Last Logs, GPS/time, and export are active.</p>
+  return <section className="page"><h2>Field Dashboard</h2><p className="muted">This is the real repo build. Seam Log, As-Built, AR Vision, AutoFill Constants, Mythos, Last Logs, GPS/time, and export are active.</p>
     <div className="kpis"><Kpi label="Total Logs" value={records.length}/><Kpi label="Seam Logs" value={seams}/><Kpi label="Locked" value={locked}/></div>
-    <div className="card"><h3>AutoFill Constants</h3><p>{constantTitle(constants)}</p><button onClick={()=>setTab('capture')}>Open Tap Capture</button></div>
+    <div className="card"><h3>Mythos Field Agent</h3><p>{nextMythosAction(constants, records)}</p><div className="button-row"><button onClick={()=>setTab('mythos')}><Brain size={16}/> Open Mythos</button><button onClick={()=>setTab('capture')}>Open Tap Capture</button></div></div>
+    <div className="card"><h3>AutoFill Constants</h3><p>{constantTitle(constants)}</p></div>
   </section>;
 }
 function Kpi({label,value}:{label:string;value:number}){return <div className="kpi"><strong>{value}</strong><span>{label}</span></div>}
@@ -196,6 +274,28 @@ function AsBuilt({points}:{points:AsBuiltPoint[]}){
 function Vision({constants,gps,captureGps,points}:{constants:ConstantData;gps?:GPSPoint;captureGps:()=>void;points:AsBuiltPoint[]}){
   const target = points[0];
   return <section className="page"><h2>AR Vision HUD</h2><p className="muted">Camera/AR workflow shell: shows active seam, roll, GPS, and nearest as-built target. This is where live camera overlay logic connects next.</p><div className="vision"><div className="reticle"></div><div className="hud top-left">ROLL {constants.activeRollNumber || '--'}<br/>SEAM {constants.activeSeam || '--'}<br/>PANEL {constants.activePanel || '--'}</div><div className="hud bottom-left">{gps ? `${gps.lat.toFixed(6)}, ${gps.lng.toFixed(6)}` : 'NO GPS LOCK'}</div><div className="hud top-right">TARGET<br/>{target?.label || 'No as-built point'}</div></div><button onClick={captureGps}><Crosshair size={16}/> Capture Current Position</button></section>;
+}
+
+function Mythos({ constants, records, setTab }: { constants: ConstantData; records: QCRecord[]; setTab: (t: any)=>void }) {
+  const issues = analyzeMythos(constants, records);
+  const counts = {
+    seams: records.filter(r => r.type === 'seam').length,
+    panels: records.filter(r => r.type === 'panel').length,
+    repairs: records.filter(r => r.type === 'repair').length,
+    tests: records.filter(r => r.type === 'dt' || r.type === 'air' || r.type === 'wedge').length
+  };
+  const dailySummary = records.slice(0, 8).map(r => `${r.createdAtDisplay}: ${r.title}`).join('\n') || 'No records saved yet.';
+
+  return <section className="page mythos-page">
+    <div className="mythos-hero"><Brain size={42}/><div><h2>Mythos Field Agent</h2><p>QC assistant watching your logs, constants, GPS, seams, tests, and missing data.</p></div></div>
+    <div className="card mythos-command"><div className="tiny">NEXT PROVEN ACTION</div><h3>{nextMythosAction(constants, records)}</h3><div className="button-row"><button onClick={()=>setTab('capture')}><Plus size={16}/> Go Capture</button><button onClick={()=>setTab('logs')}><Archive size={16}/> Review Logs</button><button onClick={()=>setTab('asbuilt')}><Map size={16}/> View As-Built</button></div></div>
+    <div className="kpis"><Kpi label="Seams" value={counts.seams}/><Kpi label="Panels" value={counts.panels}/><Kpi label="Repairs" value={counts.repairs}/><Kpi label="Tests" value={counts.tests}/></div>
+    <div className="mythos-grid">
+      <div className="card"><h3>QC Watch List</h3><div className="issue-list">{issues.map((i,idx)=><div key={idx} className={`issue ${i.level}`}><strong>{i.title}</strong><p>{i.detail}</p><span>{i.action}</span></div>)}</div></div>
+      <div className="card"><h3>What Mythos Knows Now</h3><p><b>Project:</b> {constants.projectName || 'Missing'}</p><p><b>Roll:</b> {constants.activeRollNumber || 'Missing'}</p><p><b>Panel:</b> {constants.activePanel || 'Missing'}</p><p><b>Seam:</b> {constants.activeSeam || 'Missing'}</p><p><b>Liner:</b> {[constants.linerWidth, constants.linerThickness, constants.linerType].filter(Boolean).join(' / ') || 'Missing'}</p></div>
+      <div className="card wide"><h3>Daily Summary Draft</h3><pre>{dailySummary}</pre></div>
+    </div>
+  </section>;
 }
 
 function Exports({records,exportBackup,exportCsv}:{records:QCRecord[];exportBackup:()=>void;exportCsv:()=>void}){
