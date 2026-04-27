@@ -21,6 +21,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Apply Chunk 6 Smart Autofill / Project Memory
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('src/main.tsx')
+          s = p.read_text()
+
+          s = s.replace('FIELD BUILD • CHUNK 5', 'FIELD BUILD • CHUNK 6')
+          s = s.replace('LINERSYNC-FIELD • Last Logs Edit Build', 'LINERSYNC-FIELD • Smart Autofill Build')
+          s = s.replace('Seam Log, AutoFill, Mythos, As-Built, AR Vision, GPS/time, Last Logs, edit, lock, duplicate, delete, and export are active.', 'Chunk 6 is active: Project Memory, Smart Autofill, GPS/time, Last Logs, edit, lock, duplicate, delete, export, As-Built, AR Vision, and Mythos are active.')
+          s = s.replace('<h3>Chunk 5 Last Logs</h3><p>Open Last Logs to review saved data, edit bad entries, lock good records, copy repeat entries, or export one record.</p>', '<h3>Chunk 6 Smart Autofill / Project Memory</h3><p>Enter project, crew, installer, liner type, thickness, width, roll, seam, panel, machine, weather, and shift once. Every new log keeps using it until you change it.</p>')
+
+          marker = "function recordTitle(type: ModuleType, fields: Record<string, string>, constants: ConstantData) {\n  return `${moduleLabel(type)} - ${fields.seamNumber || fields.panelNumber || fields.rollNumber || constants.activeSeam || constants.activePanel || constants.activeRollNumber || now12()}`;\n}\n"
+          insert = marker + "\nfunction smartFillSummary(c: ConstantData) {\n  const locked = [\n    c.projectName && `Project ${c.projectName}`,\n    c.installer && `Installer ${c.installer}`,\n    c.crew && `Crew ${c.crew}`,\n    c.activeRollNumber && `Roll ${c.activeRollNumber}`,\n    c.activePanel && `Panel ${c.activePanel}`,\n    c.activeSeam && `Seam ${c.activeSeam}`,\n    c.linerType && `${c.linerType}`,\n    c.linerThickness && `${c.linerThickness}`,\n    c.linerWidth && `${c.linerWidth}`,\n    c.wedgeMachine && `Wedge ${c.wedgeMachine}`,\n    c.extrusionWelder && `Extruder ${c.extrusionWelder}`,\n    c.weather && `Weather ${c.weather}`,\n    c.shift && `Shift ${c.shift}`\n  ].filter(Boolean);\n  return locked.length ? locked.join(' • ') : 'No job memory locked in yet';\n}\n"
+          if 'function smartFillSummary' not in s:
+              s = s.replace(marker, insert)
+
+          old = """    const capturedGps = gps || await getGps();\n    const rec: QCRecord = {\n      id: editState?.id || `LS-${Date.now()}`,\n      type: activeType,\n      title: recordTitle(activeType, fields, constants),\n      location,\n      status: lock ? 'locked' : 'draft',\n      constants: { ...constants },\n      fields: { ...fields },"""
+          new = """    const capturedGps = gps || await getGps();\n    const smartConstants: ConstantData = { ...constants };\n    if (fields.rollNumber) smartConstants.activeRollNumber = fields.rollNumber;\n    if (fields.panelNumber) smartConstants.activePanel = fields.panelNumber;\n    if (fields.panelA) smartConstants.activePanel = fields.panelA;\n    if (fields.seamNumber) smartConstants.activeSeam = fields.seamNumber;\n    if (fields.relatedSeam) smartConstants.activeSeam = fields.relatedSeam;\n    if (fields.machine) smartConstants.wedgeMachine = fields.machine;\n    if (fields.extruder) smartConstants.extrusionWelder = fields.extruder;\n    if (fields.rodLot) smartConstants.rodLot = fields.rodLot;\n    if (fields.crew) smartConstants.crew = fields.crew;\n    if (fields.weather) smartConstants.weather = fields.weather;\n\n    const rec: QCRecord = {\n      id: editState?.id || `LS-${Date.now()}`,\n      type: activeType,\n      title: recordTitle(activeType, fields, smartConstants),\n      location,\n      status: lock ? 'locked' : 'draft',\n      constants: { ...smartConstants },\n      fields: { date: new Date().toLocaleDateString(), time: now12(), ...fields },"""
+          if old in s:
+              s = s.replace(old, new)
+
+          s = s.replace("""    if (editState) {\n      setRecords(records.map(r => r.id === editState.id ? rec : r));""", """    setConstants(smartConstants);\n\n    if (editState) {\n      setRecords(records.map(r => r.id === editState.id ? rec : r));""")
+
+          old_cap = """function Capture(props: any) {\n  const { editState, activeType,setActiveType,constants,updateConst,fields,setFields,location,setLocation,notes,setNotes,gps,captureGps,saveRecord,cancelEdit } = props;\n  return <section className=\"page\"><h2>{editState ? 'Edit Saved Log' : 'Tap Capture'}</h2><p className=\"muted\">Constants stay filled until changed. Edit keeps the same saved record ID and updates the existing log instead of creating junk duplicates.</p>"""
+          new_cap = """function Capture(props: any) {\n  const { editState, activeType,setActiveType,constants,updateConst,fields,setFields,location,setLocation,notes,setNotes,gps,captureGps,saveRecord,cancelEdit } = props;\n  function applySmartFieldChange(key: string, value: string) {\n    setFields({ ...fields, [key]: value });\n    if (key === 'rollNumber') updateConst('activeRollNumber', value);\n    if (key === 'panelNumber' || key === 'panelA') updateConst('activePanel', value);\n    if (key === 'seamNumber' || key === 'relatedSeam') updateConst('activeSeam', value);\n    if (key === 'machine') updateConst('wedgeMachine', value);\n    if (key === 'extruder') updateConst('extrusionWelder', value);\n    if (key === 'rodLot') updateConst('rodLot', value);\n    if (key === 'crew') updateConst('crew', value);\n    if (key === 'weather') updateConst('weather', value);\n  }\n  return <section className=\"page\"><h2>{editState ? 'Edit Saved Log' : 'Tap Capture'}</h2><div className=\"card\"><h3>Chunk 6 Smart Autofill / Project Memory</h3><p>Current memory: {smartFillSummary(constants)}</p><p className=\"muted\">Change roll, panel, seam, machine, crew, weather, liner type, width, thickness, installer, or project once. The next log auto-fills it until you change it again.</p></div><p className=\"muted\">Date, 12-hour time, and GPS attach automatically when you save.</p>"""
+          if old_cap in s:
+              s = s.replace(old_cap, new_cap)
+
+          s = s.replace("""<div className=\"form-grid\">{FIELD_MAP[activeType].map(([label,key])=><label key={key}>{label}<input value={fields[key]||''} onChange={e=>setFields({...fields,[key]:e.target.value})}/></label>)}</div>""", """<div className=\"form-grid\">{FIELD_MAP[activeType].map(([label,key])=><label key={key}>{label}<input value={fields[key]||''} onChange={e=>applySmartFieldChange(key,e.target.value)}/></label>)}</div>""")
+
+          s = s.replace('<h2>Chunk 5: Last Logs / Saved Data Viewer</h2>', '<h2>Chunk 6: Smart Autofill Last Logs</h2>')
+          s = s.replace('Review what was captured. Edit bad entries without losing the original saved record. Lock the good ones.', 'Review what was captured. Each saved log now carries project memory, date, 12-hour time, GPS, roll, liner, width, thickness, crew, installer, and changed values.')
+
+          p.write_text(s)
+          print('Chunk 6 Smart Autofill patch applied')
+          PY
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
